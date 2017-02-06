@@ -68,6 +68,11 @@ h = frame.shape[0]
 
 fps = 30
 
+grayscale = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+ret,thresh1 = cv2.threshold(grayscale, 150, 255, cv2.THRESH_BINARY)
+
+
+
 # One of these combinations should hopefully work on your platform:
 fourcc, ext = (cv2.VideoWriter_fourcc('D', 'I', 'V', 'X'), 'avi')
 #fourcc, ext = (cv2.VideoWriter_fourcc('M', 'P', '4', 'V'), 'mov')
@@ -79,13 +84,17 @@ if not writer:
     print('Error opening writer')
 else:
     print('Opened', filename, 'for output.')
-    writer.write(frame)
+    writer.write(thresh1)
 
 # Loop until movie is ended or user hits ESC:
 while 1:
 
     # Get the frame.
     ok, frame = capture.read(frame)
+    grayscale = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    ret,thresh1 = cv2.threshold(grayscale, 150, 255, cv2.THRESH_BINARY)
+
+
 
     # Bail if none.
     if not ok or frame is None:
@@ -93,10 +102,10 @@ while 1:
 
     # Write if we have a writer.
     if writer:
-        writer.write(frame)
+        writer.write(thresh1)
 
     # Throw it up on the screen.
-    cv2.imshow('Video', frame)
+    cv2.imshow('Video', thresh1)
 
     # Delay for 5ms and get a key
     k = cv2.waitKey(5)
