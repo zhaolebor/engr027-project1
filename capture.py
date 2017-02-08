@@ -38,7 +38,7 @@ else:
     print()
     print('  python', sys.argv[0], '0')
     print()
-    input_filename = 'bunny.mp4'
+    input_filename = 'traffic.mp4'
 
 # Choose camera or file, depending upon whether device was set:
 if input_device is not None:
