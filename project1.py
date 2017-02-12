@@ -25,12 +25,13 @@ import sys
 import struct
 import cvk2
 import matplotlib
-#import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 
 
 frames = []
 new_frames = []
 displays = []
+all_points = []
 white = (255,255,255)
 
 
@@ -115,16 +116,28 @@ for i in range(len(frames)):
 
     display = numpy.zeros((dilation.shape[0], dilation.shape[1], 3), dtype='uint8')
 
+    new_points = []
     for j in range(len(contours)):
         info = cvk2.getcontourinfo(contours[j])
         mu = info['mean']
 
-        plt.plot(mu)
-        plt.xlabel('x-pos')
-        plt.ylabel('y-pos')
-        plt.show
+        mu_new = cvk2.array2cv_int(mu)
+        new_points.append(mu_new)
+
+        #plt.plot(mu)
+        #plt.xlabel('x-pos')
+        #plt.ylabel('y-pos')
+        #plt.show
 
         cv2.circle(display, cvk2.array2cv_int(mu), 3, white, 1, cv2.LINE_AA)
+
+    all_points.append(new_points)
+    for i in range(len(all_points)):
+        print(len(all_points[i]))
+    #old_points = new_points
+    #w = cvk2.MultiPointWidget()
+    #w.points = points
+    #print(w.points)
 
     displays.append(display)
 
