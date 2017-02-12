@@ -20,10 +20,12 @@
 from __future__ import print_function
 
 import cv2
-import numpy as np
+import numpy
 import sys
 import struct
 import cvk2
+import matplotlib
+#import matplotlib.pyplot as plt
 
 
 frames = []
@@ -34,6 +36,9 @@ white = (255,255,255)
 
 # Figure out what input we should load:
 input_device = None
+
+def fixKeyCode(code):
+    return numpy.uint8(code).view(numpy.int8)
 
 if len(sys.argv) > 1:
     input_filename = sys.argv[1]
@@ -46,7 +51,7 @@ else:
     print()
     print('  python', sys.argv[0], '0')
     print()
-    input_filename = 'traffic.mp4'
+    input_filename = 'traffic2.mp4'
 
 # Choose camera or file, depending upon whether device was set:
 if input_device is not None:
@@ -56,7 +61,7 @@ if input_device is not None:
 else:
     capture = cv2.VideoCapture(input_filename)
     if capture:
-        print('Opened file for processing', input_filename)
+        print('Opened file for reading', input_filename)
 
 # Bail if error.
 if not capture or not capture.isOpened():
@@ -74,6 +79,12 @@ while 1:
     if k % 0x100 == 27:
         break
 
+print('finished reading')
+print()
+threshold_value = int(raw_input('Enter an int threshold value: '))
+erosion_kernel_size = int(raw_input('Enter an int erosion kernel size: '))
+dilation_kernel_size = int(raw_input('Enter an int dilation kernel size: '))
+
 for i in range(len(frames)):
     #if i == 0 or i == 1:
         #average = (frames[i]+frames[i+1]+frames[i+2])/3
@@ -85,31 +96,42 @@ for i in range(len(frames)):
         #average = (frames[i-1]+frames[i]+frames[i+1])/3
         average = (frames[i]+frames[i+1])/2
     new_frame = cv2.absdiff(average, frames[i])
-    ret,thresh1 = cv2.threshold(new_frame, 160, 255, cv2.THRESH_BINARY)
+    ret,thresh1 = cv2.threshold(new_frame, threshold_value, 255, cv2.THRESH_BINARY)
 
-    kernel_erosion = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, tuple((5,5)))
+    if i == 0 or i == len(frames)-1 or i == len(frames)/2:
+        cv2.imwrite('pre-morph-op_at_frame_'+ str(i) +'.jpg', thresh1)
+
+    kernel_erosion = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, tuple((erosion_kernel_size,erosion_kernel_size)))
     erosion = cv2.erode(thresh1, kernel_erosion)
 
-    kernel_dilation = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, tuple((15,15)))
+    kernel_dilation = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, tuple((dilation_kernel_size,dilation_kernel_size)))
     dilation = cv2.dilate(erosion, kernel_dilation)
+
+    if i == 0 or i == len(frames)-1 or i == len(frames)/2:
+        cv2.imwrite('post_morph_op_at_frame_'+ str(i) +'.jpg', dilation)
 
     work = dilation.copy()
     image, contours, hierarchy = cv2.findContours(work, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
 
-    display = np.zeros((dilation.shape[0], dilation.shape[1], 3), dtype='uint8')
+    display = numpy.zeros((dilation.shape[0], dilation.shape[1], 3), dtype='uint8')
 
     for j in range(len(contours)):
         info = cvk2.getcontourinfo(contours[j])
         mu = info['mean']
-        cv2.circle(display, cvk2.array2cv_int(mu), 3, white, 1, cv2.LINE_AA)
 
-    #cv2.imshow('Means', display)
+        plt.plot(mu)
+        plt.xlabel('x-pos')
+        plt.ylabel('y-pos')
+        plt.show
+
+        cv2.circle(display, cvk2.array2cv_int(mu), 3, white, 1, cv2.LINE_AA)
 
     displays.append(display)
 
     new_frames.append(dilation)
 
-#cv2.imshow('frame1', new_frames[0])
+print('finished processing, saved pre and post morph op images at frame 0, ' + str(len(frames)/2) + ', ' + str(len(frames)-1))
+print()
 
 capture = cv2.VideoCapture(input_filename)
 if capture:
@@ -128,17 +150,11 @@ h = frame.shape[0]
 
 fps = 30
 
-#grayscale = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-#ret,thresh1 = cv2.threshold(grayscale, 150, 255, cv2.THRESH_BINARY)
-#thresh1 = cv2.adaptiveThreshold(grayscale, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, 0)
-
-
-
 # One of these combinations should hopefully work on your platform:
-#fourcc, ext = (cv2.VideoWriter_fourcc('D', 'I', 'V', 'X'), 'avi')
-fourcc, ext = (cv2.VideoWriter_fourcc('M', 'P', '4', 'V'), 'mov')
+fourcc, ext = (cv2.VideoWriter_fourcc('D', 'I', 'V', 'X'), 'avi')
+#fourcc, ext = (cv2.VideoWriter_fourcc('M', 'P', '4', 'V'), 'mov')
 
-filename = 'captured.'+ext
+filename = 'project1.'+ext
 
 writer = cv2.VideoWriter(filename, fourcc, fps, (w, h))
 if not writer:
@@ -149,18 +165,6 @@ else:
 
 # Loop until movie is ended or user hits ESC:
 for i in range(len(new_frames)):
-
-    # Get the frame.
-    #ok, frame = capture.read(frame)
-    #grayscale = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-    #ret,thresh1 = cv2.threshold(grayscale, 180, 255, cv2.THRESH_BINARY)
-    #thresh1 = cv2.adaptiveThreshold(grayscale, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 3, 0)
-
-
-
-    # Bail if none.
-    #if not ok or frame is None:
-    #    break
 
     # Write if we have a writer.
     if writer:

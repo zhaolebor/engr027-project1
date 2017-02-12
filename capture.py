@@ -38,7 +38,7 @@ else:
     print()
     print('  python', sys.argv[0], '0')
     print()
-    input_filename = 'traffic.mp4'
+    input_filename = 'bunny.mp4'
 
 # Choose camera or file, depending upon whether device was set:
 if input_device is not None:
@@ -68,11 +68,6 @@ h = frame.shape[0]
 
 fps = 30
 
-grayscale = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-ret,thresh1 = cv2.threshold(grayscale, 150, 255, cv2.THRESH_BINARY)
-
-
-
 # One of these combinations should hopefully work on your platform:
 fourcc, ext = (cv2.VideoWriter_fourcc('D', 'I', 'V', 'X'), 'avi')
 #fourcc, ext = (cv2.VideoWriter_fourcc('M', 'P', '4', 'V'), 'mov')
@@ -84,28 +79,26 @@ if not writer:
     print('Error opening writer')
 else:
     print('Opened', filename, 'for output.')
-    writer.write(thresh1)
+    writer.write(frame)
 
 # Loop until movie is ended or user hits ESC:
 while 1:
 
     # Get the frame.
     ok, frame = capture.read(frame)
-    grayscale = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-    ret,thresh1 = cv2.threshold(grayscale, 150, 255, cv2.THRESH_BINARY)
-
-
 
     # Bail if none.
     if not ok or frame is None:
         break
 
+    grayscale = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+
     # Write if we have a writer.
     if writer:
-        writer.write(thresh1)
+        writer.write(grayscale)
 
     # Throw it up on the screen.
-    cv2.imshow('Video', thresh1)
+    cv2.imshow('Video', grayscale)
 
     # Delay for 5ms and get a key
     k = cv2.waitKey(5)
