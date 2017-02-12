@@ -85,17 +85,22 @@ print()
 threshold_value = int(raw_input('Enter an int threshold value: '))
 erosion_kernel_size = int(raw_input('Enter an int erosion kernel size: '))
 dilation_kernel_size = int(raw_input('Enter an int dilation kernel size: '))
+#temp_width = int(raw_input('Enter an int temporal average width: '))
 
 for i in range(len(frames)):
+    #for i in range(temp_width):
+    #    sum = 
     #if i == 0 or i == 1:
         #average = (frames[i]+frames[i+1]+frames[i+2])/3
     #elif i == len(frames)-2 or i == len(frames)-1:
         #average = (frames[i]+frames[i-1]+frames[i-2])/3
+
     if i == len(frames)-1:
         average = (frames[i-1]+frames[i])/2
     else:
         #average = (frames[i-1]+frames[i]+frames[i+1])/3
         average = (frames[i]+frames[i+1])/2
+
     new_frame = cv2.absdiff(average, frames[i])
     ret,thresh1 = cv2.threshold(new_frame, threshold_value, 255, cv2.THRESH_BINARY)
 
