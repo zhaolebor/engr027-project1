@@ -25,6 +25,7 @@ import sys
 import struct
 import cvk2
 import matplotlib
+import os
 from matplotlib import pyplot as plt
 
 
@@ -38,9 +39,37 @@ white = (255,255,255)
 # Figure out what input we should load:
 input_device = None
 
+######################################################################
+# Helper function to pick points
+def pickPoints(window, image, filename, xcoord=0):
+
+    cv2.namedWindow(window)
+    cv2.imshow(window, image)
+    cv2.moveWindow(window, xcoord, 0)
+
+    w = cvk2.MultiPointWidget()
+
+    if w.load(filename):
+        print('loaded points from {}'.format(filename))
+    else:
+        print('could not load points from {}'.format(filename))
+
+    ok = w.start(window, image)
+
+    if not ok:
+        print('user canceled instead of picking points')
+        sys.exit(1)
+
+    w.save(filename)
+
+    return w.points
+
+# Helper function to display the image until a key event
 def fixKeyCode(code):
     return numpy.uint8(code).view(numpy.int8)
 
+######################################################################
+# Main program starts here
 if len(sys.argv) > 1:
     input_filename = sys.argv[1]
     try:
@@ -53,6 +82,10 @@ else:
     print('  python', sys.argv[0], '0')
     print()
     input_filename = 'traffic2.mp4'
+
+basename = os.path.basename(input_filename)
+prefix, _ = os.path.splitext(basename)
+datafile = prefix + '.txt'
 
 # Choose camera or file, depending upon whether device was set:
 if input_device is not None:
@@ -85,26 +118,21 @@ print()
 threshold_value = int(raw_input('Enter an int threshold value: '))
 erosion_kernel_size = int(raw_input('Enter an int erosion kernel size: '))
 dilation_kernel_size = int(raw_input('Enter an int dilation kernel size: '))
-#temp_width = int(raw_input('Enter an int temporal average width: '))
+temp_width = int(raw_input('Enter an int temporal average width: '))
 
-for i in range(len(frames)):
-    #for i in range(temp_width):
-    #    sum = 
-    #if i == 0 or i == 1:
-        #average = (frames[i]+frames[i+1]+frames[i+2])/3
-    #elif i == len(frames)-2 or i == len(frames)-1:
-        #average = (frames[i]+frames[i-1]+frames[i-2])/3
-
-    if i == len(frames)-1:
-        average = (frames[i-1]+frames[i])/2
-    else:
-        #average = (frames[i-1]+frames[i]+frames[i+1])/3
-        average = (frames[i]+frames[i+1])/2
+for i in range(len(frames)-1):
+    sum = 0
+    for j in range(temp_width):
+        if i+j >= len(frames):
+            sum += frames[len(frames)-1]
+        else:
+            sum += frames[i+j]
+    average = sum/temp_width
 
     new_frame = cv2.absdiff(average, frames[i])
     ret,thresh1 = cv2.threshold(new_frame, threshold_value, 255, cv2.THRESH_BINARY)
 
-    if i == 0 or i == len(frames)-1 or i == len(frames)/2:
+    if i == 0 or i == len(frames)-2 or i == len(frames)/2:
         cv2.imwrite('pre-morph-op_at_frame_'+ str(i) +'.jpg', thresh1)
 
     kernel_erosion = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, tuple((erosion_kernel_size,erosion_kernel_size)))
@@ -113,7 +141,7 @@ for i in range(len(frames)):
     kernel_dilation = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, tuple((dilation_kernel_size,dilation_kernel_size)))
     dilation = cv2.dilate(erosion, kernel_dilation)
 
-    if i == 0 or i == len(frames)-1 or i == len(frames)/2:
+    if i == 0 or i == len(frames)-2 or i == len(frames)/2:
         cv2.imwrite('post_morph_op_at_frame_'+ str(i) +'.jpg', dilation)
 
     work = dilation.copy()
@@ -129,31 +157,29 @@ for i in range(len(frames)):
         mu_new = cvk2.array2cv_int(mu)
         new_points.append(mu_new)
 
-        #plt.plot(mu)
-        #plt.xlabel('x-pos')
-        #plt.ylabel('y-pos')
-        #plt.show
-
         cv2.circle(display, cvk2.array2cv_int(mu), 3, white, 1, cv2.LINE_AA)
 
     all_points.append(new_points)
-    for i in range(len(all_points)):
-        print(len(all_points[i]))
-    #old_points = new_points
-    #w = cvk2.MultiPointWidget()
-    #w.points = points
-    #print(w.points)
 
     displays.append(display)
 
     new_frames.append(dilation)
 
-print('finished processing, saved pre and post morph op images at frame 0, ' + str(len(frames)/2) + ', ' + str(len(frames)-1))
+for i in range(len(all_points)):
+    print(len(all_points[i]))
+
+print('finished processing, saved pre and post morph op images at frame 0, ' + str(len(frames)/2) + ', ' + str(len(frames)-2))
 print()
 
+print('Please pick the object you want to track from the first frame by right clicking.')
+points_to_track = pickPoints('frame 0', displays[0], datafile)
+print('got pointsA =\n', points_to_track)
+
+######################################################################
+# Now begin the output process
 capture = cv2.VideoCapture(input_filename)
 if capture:
-    print('Opened file again', input_filename)
+    print('Opened file again for output', input_filename)
 
 # Fetch the first frame and bail if none.
 ok, frame = capture.read()
