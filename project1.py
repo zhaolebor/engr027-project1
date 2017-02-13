@@ -28,6 +28,8 @@ import matplotlib
 import os
 from matplotlib import pyplot as plt
 
+matplotlib.interactive(True)
+
 
 frames = []
 new_frames = []
@@ -178,9 +180,15 @@ for i in range(len(frames)-1):
 for i in range(len(all_points)):
     print(len(all_points[i]))
 
+w = new_frames[0].shape[1]
+h = new_frames[0].shape[0]
+
+print(w,h)
+
 print('finished processing, saved pre and post morph op images at frame 0, ' + str(len(frames)/2) + ', ' + str(len(frames)-2))
 print()
 
+# Begin tracking process
 print('Please pick the object you want to track from the first frame by right clicking.')
 points_to_track = pickPoints('frame 0', displays[0], datafile)
 print('got points =\n', points_to_track)
@@ -196,28 +204,63 @@ for point1 in points_to_track:
             best = point2
             best_distance = curr_distance
     best_points.append(best)
-
 print('found points at frame 0', best_points)
+
+trajectory = []
+trajectory.append(best_points)
+for i in range(len(frames)-1):
+    best_points = []
+    for old_point in trajectory[0]:
+        best = None
+        best_distance = float('inf')
+        for new_point in all_points[i]:
+            curr_distance = distance(old_point, new_point)
+            if curr_distance < best_distance and new_point not in best_points:
+                best = new_point
+                best_distance = curr_distance
+        best_points.append(best)
+    trajectory.append(best_points)
+
+for j in range(len(best_points)):
+    best_x = []
+    best_y = []
+    for i in range(len(trajectory)):
+        if i == 0:
+            last_point = best_points[j]
+        else:
+            last_point = tuple((best_x[-1], best_y[-1]))
+        curr_distance = distance(last_point, trajectory[i][j])
+        if curr_distance > 50:
+            increment = 1
+            while 1:
+                if i+increment >= len(trajectory):
+                    break
+                else:
+                    curr_distance = distance(last_point, trajectory[i+increment][j])
+                    if curr_distance > 50:
+                        increment += 1
+                    else:
+                        good_point = trajectory[i+increment][j]
+                        break
+            best_x.append(good_point[0])
+            best_y.append(good_point[1])
+        else:
+            best_x.append(trajectory[i][j][0])
+            best_y.append(trajectory[i][j][1])
+
+    plt.figure(j+1)
+    plt.plot(best_x, best_y, 'r-')
+    plt.title('trajectory of point ' + str(j+1))
+    plt.xlabel('x-pos')
+    plt.ylabel('y-pos')
+    plt.axis([0, w, h, 0])
+    plt.draw()
+    plt.savefig('trajectory_' + str(j+1) +'.png')
 
 
 
 ######################################################################
-# Now begin the output process
-#capture = cv2.VideoCapture(input_filename)
-#if capture:
-#    print('Opened file again for output', input_filename)
-
-# Fetch the first frame and bail if none.
-#ok, frame = capture.read()
-
-#if not ok or frame is None:
-#    print('No frames in video')
-#    sys.exit(1)
-
 # Now set up a VideoWriter to output video.
-w = new_frames[0].shape[1]
-h = new_frames[0].shape[0]
-
 fps = 30
 
 # One of these combinations should hopefully work on your platform:
@@ -250,3 +293,4 @@ for i in range(len(new_frames)):
     # Check for ESC hit:
     if k % 0x100 == 27:
         break
+plt.show()
