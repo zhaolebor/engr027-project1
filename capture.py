@@ -62,9 +62,12 @@ if not ok or frame is None:
     print('No frames in video')
     sys.exit(1)
 
+grayscale = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+new = cv2.cvtColor(grayscale, cv2.COLOR_GRAY2RGB)
+
 # Now set up a VideoWriter to output video.
-w = frame.shape[1]
-h = frame.shape[0]
+w = new.shape[1]
+h = new.shape[0]
 
 fps = 30
 
@@ -79,7 +82,7 @@ if not writer:
     print('Error opening writer')
 else:
     print('Opened', filename, 'for output.')
-    writer.write(frame)
+    writer.write(new)
 
 # Loop until movie is ended or user hits ESC:
 while 1:
@@ -92,13 +95,14 @@ while 1:
         break
 
     grayscale = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    new = cv2.cvtColor(grayscale, cv2.COLOR_GRAY2RGB)
 
     # Write if we have a writer.
     if writer:
-        writer.write(grayscale)
+        writer.write(new)
 
     # Throw it up on the screen.
-    cv2.imshow('Video', grayscale)
+    cv2.imshow('Video', new)
 
     # Delay for 5ms and get a key
     k = cv2.waitKey(5)

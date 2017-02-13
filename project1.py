@@ -64,6 +64,10 @@ def pickPoints(window, image, filename, xcoord=0):
 
     return w.points
 
+# Helper function to calculate distance between two points
+def distance(p0, p1):
+    return numpy.sqrt(numpy.square(p0[0] - p1[0]) + numpy.square(p0[1] - p1[1]))
+
 # Helper function to display the image until a key event
 def fixKeyCode(code):
     return numpy.uint8(code).view(numpy.int8)
@@ -113,6 +117,7 @@ while 1:
     if k % 0x100 == 27:
         break
 
+# Prompt user input for parameters
 print('finished reading')
 print()
 threshold_value = int(raw_input('Enter an int threshold value: '))
@@ -120,20 +125,20 @@ erosion_kernel_size = int(raw_input('Enter an int erosion kernel size: '))
 dilation_kernel_size = int(raw_input('Enter an int dilation kernel size: '))
 temp_width = int(raw_input('Enter an int temporal average width: '))
 
+
+# Begin processing
 for i in range(len(frames)-1):
-    sum = 0
+    sum = numpy.zeros_like(frames[i], dtype='uint32')
     for j in range(temp_width):
         if i+j >= len(frames):
             sum += frames[len(frames)-1]
         else:
             sum += frames[i+j]
-    average = sum/temp_width
+    old_average = sum/temp_width
+    average = numpy.array(old_average, dtype='uint8')
 
     new_frame = cv2.absdiff(average, frames[i])
     ret,thresh1 = cv2.threshold(new_frame, threshold_value, 255, cv2.THRESH_BINARY)
-
-    if i == 0 or i == len(frames)-2 or i == len(frames)/2:
-        cv2.imwrite('pre-morph-op_at_frame_'+ str(i) +'.jpg', thresh1)
 
     kernel_erosion = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, tuple((erosion_kernel_size,erosion_kernel_size)))
     erosion = cv2.erode(thresh1, kernel_erosion)
@@ -141,14 +146,17 @@ for i in range(len(frames)-1):
     kernel_dilation = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, tuple((dilation_kernel_size,dilation_kernel_size)))
     dilation = cv2.dilate(erosion, kernel_dilation)
 
+    # Save thresholded images before and after morph ops, also save original frame for reference
     if i == 0 or i == len(frames)-2 or i == len(frames)/2:
+        cv2.imwrite('pre-morph-op_at_frame_'+ str(i) +'.jpg', thresh1)
         cv2.imwrite('post_morph_op_at_frame_'+ str(i) +'.jpg', dilation)
+        cv2.imwrite('original_at_frame_'+ str(i) +'.jpg', frames[i])
+
+
 
     work = dilation.copy()
     image, contours, hierarchy = cv2.findContours(work, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
-
     display = numpy.zeros((dilation.shape[0], dilation.shape[1], 3), dtype='uint8')
-
     new_points = []
     for j in range(len(contours)):
         info = cvk2.getcontourinfo(contours[j])
@@ -163,7 +171,9 @@ for i in range(len(frames)-1):
 
     displays.append(display)
 
-    new_frames.append(dilation)
+    dilation_rgb = cv2.cvtColor(dilation, cv2.COLOR_GRAY2RGB)
+
+    new_frames.append(dilation_rgb)
 
 for i in range(len(all_points)):
     print(len(all_points[i]))
@@ -173,24 +183,40 @@ print()
 
 print('Please pick the object you want to track from the first frame by right clicking.')
 points_to_track = pickPoints('frame 0', displays[0], datafile)
-print('got pointsA =\n', points_to_track)
+print('got points =\n', points_to_track)
+
+best_points = []
+for point1 in points_to_track:
+    point1 = tuple(point1[0])
+    best = None
+    best_distance = float('inf')
+    for point2 in all_points[0]:
+        curr_distance = distance(point1, point2)
+        if curr_distance < best_distance:
+            best = point2
+            best_distance = curr_distance
+    best_points.append(best)
+
+print('found points at frame 0', best_points)
+
+
 
 ######################################################################
 # Now begin the output process
-capture = cv2.VideoCapture(input_filename)
-if capture:
-    print('Opened file again for output', input_filename)
+#capture = cv2.VideoCapture(input_filename)
+#if capture:
+#    print('Opened file again for output', input_filename)
 
 # Fetch the first frame and bail if none.
-ok, frame = capture.read()
+#ok, frame = capture.read()
 
-if not ok or frame is None:
-    print('No frames in video')
-    sys.exit(1)
+#if not ok or frame is None:
+#    print('No frames in video')
+#    sys.exit(1)
 
 # Now set up a VideoWriter to output video.
-w = frame.shape[1]
-h = frame.shape[0]
+w = new_frames[0].shape[1]
+h = new_frames[0].shape[0]
 
 fps = 30
 
